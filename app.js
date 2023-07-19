@@ -1,24 +1,57 @@
 const express = require("express");
+const bodyParser = require("body-parser");
+const cors = require("cors");
+const puppeteer = require("puppeteer");
+const path = require("path");
+const fs = require("fs");
+
 const app = express();
 const port = 3000;
+
+app.use(cors());
+app.use(bodyParser.json());
 
 app.get("/", (req, res) => {
   res.send("Hello World!");
 });
 
+async function gptRephraseText(textToRephrase) {
+  return "Insert chatgpt rewritten text here...";
+}
+
+function extractDomain(url) {
+  // Remove the protocol (http:// or https://) from the URL
+  let domain = url.replace(/(^\w+:|^)\/\//, "");
+
+  // Remove anything after the first forward slash (/)
+  domain = domain.split("/")[0];
+
+  // Remove port number if present
+  domain = domain.split(":")[0];
+
+  // Remove 'www' subdomain if present
+  if (domain.startsWith("www.")) {
+    domain = domain.slice(4);
+  }
+
+  return domain;
+}
+
 app.post("/scrape", async (req, res) => {
-  console.log(req.body);
-  const body = JSON.parse(req.body);
+  const body = req.body;
   const pageURL = body.pageURL;
 
   const today = new Date();
-  const modifiedPageName = `${pageURL}-${today.toISOString()}`;
+  // const modifiedPageFileName = `${extractDomain(pageURL)}-${today.toISOString()}`;
+  const modifiedPageFileName = `${extractDomain(pageURL)}.mhtml`;
 
   const doTheThing = async () => {
     const browser = await puppeteer.launch();
     const page = await browser.newPage();
 
-    await page.goto(PAGE_URL);
+    console.log("pageURL", pageURL);
+
+    await page.goto(pageURL);
 
     const selectedElements = await page.$$("p");
 
@@ -34,8 +67,6 @@ app.post("/scrape", async (req, res) => {
 
       console.log(`Old Text: ${oldText}`);
       console.log(`New Text: ${newText}\n\n`);
-
-      await sleep(20000);
     }
 
     const cdp = await page.target().createCDPSession();
@@ -43,14 +74,14 @@ app.post("/scrape", async (req, res) => {
       format: "mhtml",
     });
 
-    fs.writeFileSync(`${modifiedPageName}.html`, data);
+    fs.writeFileSync(path.join(__dirname, modifiedPageFileName), data);
 
     browser.close();
   };
 
   await doTheThing();
 
-  res.send(`${modifiedPageName}.mhtml`);
+  res.json(path.join(__dirname, modifiedPageFileName));
 });
 
 app.listen(port, () => {
