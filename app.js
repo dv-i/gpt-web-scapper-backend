@@ -1,9 +1,10 @@
-const express = require("express");
-const bodyParser = require("body-parser");
-const cors = require("cors");
-const puppeteer = require("puppeteer");
-const path = require("path");
-const fs = require("fs");
+import express from "express";
+import bodyParser from "body-parser";
+import cors from "cors";
+import puppeteer from "puppeteer";
+import path from "path";
+import fs from "fs";
+import * as chatgpt from "chatgpt";
 
 const app = express();
 const port = 3000;
@@ -16,7 +17,26 @@ app.get("/", (req, res) => {
 });
 
 async function gptRephraseText(textToRephrase) {
-  return "Insert chatgpt rewritten text here...";
+  const api = new chatgpt.ChatGPTAPI({
+    apiKey: "enter apiKey here",
+    completionParams: {
+      model: "gpt-3.5-turbo",
+    },
+  });
+
+  try {
+    if (textToRephrase.split(" ").length <= 4) {
+      throw new Error(`Text too short - ${textToRephrase}, not rephrasing`);
+    }
+    const res = await api.sendMessage(
+      `Paraphrase the following text for me and only return the paraphrased text: ${textToRephrase}`
+    );
+    return res.text;
+  } catch (error) {
+    console.error(error);
+    return textToRephrase;
+  }
+  // return "Insert chatgpt rewritten text here...";
 }
 
 function extractDomain(url) {
@@ -42,8 +62,9 @@ app.post("/scrape", async (req, res) => {
   const pageURL = body.pageURL;
 
   const today = new Date();
-  // const modifiedPageFileName = `${extractDomain(pageURL)}-${today.toISOString()}`;
-  const modifiedPageFileName = `${extractDomain(pageURL)}.mhtml`;
+  const modifiedPageFileName = `${extractDomain(
+    pageURL
+  )}-${today.toISOString()}.mhtml`;
 
   const doTheThing = async () => {
     const browser = await puppeteer.launch();
@@ -51,9 +72,9 @@ app.post("/scrape", async (req, res) => {
 
     console.log("pageURL", pageURL);
 
-    await page.goto(pageURL);
+    await page.goto(pageURL, { waitUntil: "networkidle0" });
 
-    const selectedElements = await page.$$("p");
+    const selectedElements = await page.$$("p, h1, h2, h3, h4, h5, h6, li, td");
 
     for (let el of selectedElements) {
       const oldText = await el.evaluate((_) => _.innerText);
@@ -74,14 +95,14 @@ app.post("/scrape", async (req, res) => {
       format: "mhtml",
     });
 
-    fs.writeFileSync(path.join(__dirname, modifiedPageFileName), data);
+    fs.writeFileSync(path.join(process.cwd(), modifiedPageFileName), data);
 
     browser.close();
   };
 
   await doTheThing();
 
-  res.json(path.join(__dirname, modifiedPageFileName));
+  res.json(path.join(process.cwd(), modifiedPageFileName));
 });
 
 app.listen(port, () => {
