@@ -1,3 +1,4 @@
+require("dotenv").config();
 import express from "express";
 import bodyParser from "body-parser";
 import cors from "cors";
@@ -18,14 +19,19 @@ app.get("/", (req, res) => {
 
 async function gptRephraseText(textToRephrase) {
   const api = new chatgpt.ChatGPTAPI({
-    apiKey: "enter apiKey here",
+    apiKey: process.env.OPENAI_API_KEY || "",
     completionParams: {
       model: "gpt-3.5-turbo",
     },
   });
 
   try {
-    if (textToRephrase.split(" ").length <= 4) {
+    console.log(
+      "Text length",
+      textToRephrase.replace(/,/g, "").split(" "),
+      textToRephrase.replace(/,/g, "").split(" ").length
+    );
+    if (textToRephrase.replace(/,/g, "").split(" ").length < 4) {
       throw new Error(`Text too short - ${textToRephrase}, not rephrasing`);
     }
     const res = await api.sendMessage(
@@ -72,22 +78,45 @@ app.post("/scrape", async (req, res) => {
 
     console.log("pageURL", pageURL);
 
-    await page.goto(pageURL, { waitUntil: "networkidle0" });
+    await page.goto(pageURL);
 
-    const selectedElements = await page.$$("p, h1, h2, h3, h4, h5, h6, li, td");
+    await page.evaluate(() => {
+      const lazyLoadImages = document.querySelectorAll("img[data-src]");
+      lazyLoadImages.forEach((img) => {
+        img.src = img.dataset.src;
+      });
+    });
+
+    new Promise((r) => setTimeout(r, 5000));
+
+    const selectedElements = await page.$$(
+      "p, h1, h2, h3, h4, h5, h6, li, td, span"
+    );
 
     for (let el of selectedElements) {
       const oldText = await el.evaluate((_) => _.innerText);
 
       const textToReplace = await gptRephraseText(oldText);
 
-      const newText = await el.evaluate((_, updatedText) => {
-        _.innerText = updatedText;
-        return _.innerHTML;
-      }, textToReplace);
+      // const newText = await el.evaluate((_, updatedText) => {
+      //   _.innerText = updatedText;
+      //   return _.innerHTML;
+      // }, textToReplace);
 
-      console.log(`Old Text: ${oldText}`);
-      console.log(`New Text: ${newText}\n\n`);
+      // console.log(`Old Text: ${oldText}`);
+      // console.log(`New Text: ${newText}\n\n`);
+
+      await el.evaluate((element, updatedText) => {
+        const allTextNodes = document.createNodeIterator(
+          element,
+          NodeFilter.SHOW_TEXT
+        );
+
+        let node;
+        while ((node = allTextNodes.nextNode())) {
+          node.nodeValue = updatedText; // Update the text of each text node
+        }
+      }, textToReplace);
     }
 
     const cdp = await page.target().createCDPSession();
