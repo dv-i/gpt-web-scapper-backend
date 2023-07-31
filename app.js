@@ -10,7 +10,10 @@ import * as chatgpt from "chatgpt";
 const app = express();
 const port = process.env.PORT || 3000;
 
-app.use(cors());
+if (process.env.ENVIRONMENT === "development") {
+  app.use(cors());
+}
+
 app.use(bodyParser.json());
 
 app.get("/", (req, res) => {
@@ -39,24 +42,6 @@ async function gptRephraseText(textToRephrase) {
     return textToRephrase;
   }
   // return "Insert chatgpt text...";
-}
-
-function extractDomain(url) {
-  // Remove the protocol (http:// or https://) from the URL
-  let domain = url.replace(/(^\w+:|^)\/\//, "");
-
-  // Remove anything after the first forward slash (/)
-  domain = domain.split("/")[0];
-
-  // Remove port number if present
-  domain = domain.split(":")[0];
-
-  // Remove 'www' subdomain if present
-  if (domain.startsWith("www.")) {
-    domain = domain.slice(4);
-  }
-
-  return domain;
 }
 
 const getFileFromDisk = (filePath) => {
