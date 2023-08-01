@@ -5,7 +5,7 @@
   "main": "dist/app.js",
   "type": "module",
   "engines": {
-    "node": "16.x",
+    "node": "18.x",
     "npm": "7.x"
   },
   "scripts": {
