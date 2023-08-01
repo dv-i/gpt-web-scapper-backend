@@ -10,9 +10,11 @@ import * as chatgpt from "chatgpt";
 const app = express();
 const port = process.env.PORT || 3000;
 
-if (process.env.ENVIRONMENT === "development") {
-  app.use(cors());
-}
+app.use(
+  cors({
+    origin: "*",
+  })
+);
 
 app.use(bodyParser.json());
 
