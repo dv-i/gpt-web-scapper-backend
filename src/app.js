@@ -150,6 +150,12 @@ app.post("/scrape", async (req, res) => {
   const doTheThing = async () => {
     const browser = await puppeteer.launch({
       headless: "new",
+      args: [
+        "--use-gl=egl",
+        "--no-sandbox",
+        "--single-process",
+        "--disable-setuid-sandbox",
+      ],
     });
     const page = await browser.newPage();
 
