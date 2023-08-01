@@ -23,26 +23,63 @@ app.get("/", (req, res) => {
 });
 
 async function gptRephraseText(textToRephrase) {
-  const api = new chatgpt.ChatGPTAPI({
-    apiKey: process.env.OPENAI_API_KEY || "",
-    completionParams: {
-      model: "gpt-3.5-turbo",
-    },
-  });
+  const apiKey = process.env.OPENAI_API_KEY || "";
+  const apiUrl = "https://api.openai.com/v1/chat/completions";
 
+  const headers = {
+    "Content-Type": "application/json",
+    Authorization: `Bearer ${apiKey}`,
+  };
+
+  const requestData = {
+    model: "gpt-3.5-turbo",
+    messages: [
+      {
+        role: "user",
+        content: `Please paraphrase the following text in a formal and professional style of writing, maintaining a neutral tone throughout the paraphrased version. Only return the paraphrased text: ${textToRephrase}`,
+      },
+    ],
+    temperature: 0.7,
+  };
   try {
     if (textToRephrase.split(" ").length < 4) {
       throw new Error(`Text too short - ${textToRephrase}, not rephrasing`);
     }
+    const response = await fetch(apiUrl, {
+      method: "POST",
+      headers: headers,
+      body: JSON.stringify(requestData),
+    });
 
-    const res = await api.sendMessage(
-      `Please paraphrase the following text in a formal and professional style of writing, maintaining a neutral tone throughout the paraphrased version. Only return the paraphrased text: ${textToRephrase}`
-    );
-    return ` ${res.text} `;
+    if (!response.ok) {
+      throw new Error("API request failed");
+    }
+
+    const data = await response.json();
+    return data.choices[0].message.content;
   } catch (error) {
-    console.error(error);
-    return textToRephrase;
+    console.error("Error fetching data:", error);
   }
+  // const api = new chatgpt.ChatGPTAPI({
+  //   apiKey: process.env.OPENAI_API_KEY || "",
+  //   completionParams: {
+  //     model: "gpt-3.5-turbo",
+  //   },
+  // });
+
+  // try {
+  //   if (textToRephrase.split(" ").length < 4) {
+  //     throw new Error(`Text too short - ${textToRephrase}, not rephrasing`);
+  //   }
+
+  //   const res = await api.sendMessage(
+  //     `Please paraphrase the following text in a formal and professional style of writing, maintaining a neutral tone throughout the paraphrased version. Only return the paraphrased text: ${textToRephrase}`
+  //   );
+  //   return ` ${res.text} `;
+  // } catch (error) {
+  //   console.error(error);
+  //   return textToRephrase;
+  // }
   // return "Insert chatgpt text...";
 }
 
