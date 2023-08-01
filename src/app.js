@@ -148,7 +148,9 @@ app.post("/scrape", async (req, res) => {
   const modifiedPageFileName = body.modifiedPageFileName;
 
   const doTheThing = async () => {
-    const browser = await puppeteer.launch();
+    const browser = await puppeteer.launch({
+      headless: "new",
+    });
     const page = await browser.newPage();
 
     console.log("pageURL", pageURL);
