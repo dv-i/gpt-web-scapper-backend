@@ -22,7 +22,7 @@ app.get("/", (req, res) => {
   res.send("Hello World!");
 });
 
-async function gptRephraseText(textToRephrase) {
+async function gptRephraseText(textToRephrase, dynamicPrompt) {
   const apiKey = process.env.OPENAI_API_KEY || "";
   const apiUrl = "https://api.openai.com/v1/chat/completions";
 
@@ -31,12 +31,18 @@ async function gptRephraseText(textToRephrase) {
     Authorization: `Bearer ${apiKey}`,
   };
 
+  //If prompt is passed from the user, use the user-supplied prompt otherwise use custom prompt
+  const finalPrompt = dynamicPrompt
+    ? `${dynamicPrompt} - ${textToRephrase}`
+    : `Please paraphrase the following text in a formal and professional style of writing, maintaining a neutral tone throughout the paraphrased version. Only return the paraphrased text: ${textToRephrase}`;
+
+  console.log("final prompt - ", finalPrompt);
   const requestData = {
     model: "gpt-4",
     messages: [
       {
         role: "user",
-        content: `Please paraphrase the following text in a formal and professional style of writing, maintaining a neutral tone throughout the paraphrased version. Only return the paraphrased text: ${textToRephrase}`,
+        content: finalPrompt,
       },
     ],
     temperature: 0.7,
@@ -60,27 +66,6 @@ async function gptRephraseText(textToRephrase) {
   } catch (error) {
     console.error("Error fetching data:", error);
   }
-  // const api = new chatgpt.ChatGPTAPI({
-  //   apiKey: process.env.OPENAI_API_KEY || "",
-  //   completionParams: {
-  //     model: "gpt-3.5-turbo",
-  //   },
-  // });
-
-  // try {
-  //   if (textToRephrase.split(" ").length < 4) {
-  //     throw new Error(`Text too short - ${textToRephrase}, not rephrasing`);
-  //   }
-
-  //   const res = await api.sendMessage(
-  //     `Please paraphrase the following text in a formal and professional style of writing, maintaining a neutral tone throughout the paraphrased version. Only return the paraphrased text: ${textToRephrase}`
-  //   );
-  //   return ` ${res.text} `;
-  // } catch (error) {
-  //   console.error(error);
-  //   return textToRephrase;
-  // }
-  // return "Insert chatgpt text...";
 }
 
 const getFileFromDisk = (filePath) => {
@@ -95,7 +80,7 @@ const getFileFromDisk = (filePath) => {
   });
 };
 
-async function processSelectedElements(selectedElements) {
+async function processSelectedElements(selectedElements, dynamicPrompt) {
   console.log("processSelectedElements()");
   const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
   const rateLimitDelay = 250; // Adjust this value based on the model's RPS rate limit
@@ -115,7 +100,7 @@ async function processSelectedElements(selectedElements) {
       }
 
       console.log("RUNNING...");
-      const textToReplace = await gptRephraseText(oldText);
+      const textToReplace = await gptRephraseText(oldText, dynamicPrompt);
 
       console.log("Text to replace - ", textToReplace);
 
@@ -181,10 +166,11 @@ async function loadLazyImagesAndWaitForCompletion(page) {
 app.post("/scrape", async (req, res) => {
   const body = req.body;
   const pageURL = body.pageURL;
+  const dynamicPrompt = body.prompt;
 
   const modifiedPageFileName = body.modifiedPageFileName;
 
-  const doTheThing = async () => {
+  const startScrape = async () => {
     const browser = await puppeteer.launch({
       headless: "new",
       args: [
@@ -224,7 +210,7 @@ app.post("/scrape", async (req, res) => {
       "p, h1, h2, h3, h4, h5, h6, li, td, em, strong, b, a"
     );
 
-    await processSelectedElements(selectedElements);
+    await processSelectedElements(selectedElements, dynamicPrompt);
 
     const cdp = await page.target().createCDPSession();
     const { data } = await cdp.send("Page.captureSnapshot", {
@@ -236,7 +222,7 @@ app.post("/scrape", async (req, res) => {
     browser.close();
   };
 
-  await doTheThing();
+  await startScrape();
 
   console.log("Finished. Sending back", modifiedPageFileName);
 
